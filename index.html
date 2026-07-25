@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SAF P2P Blockchain Explorer & Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #007bff; text-align: center; }
+        .section { margin-bottom: 20px; padding: 15px; background: #e9ecef; border-radius: 6px; }
+        button { background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #218838; }
+        pre { background: #212529; color: #00ff00; padding: 15px; border-radius: 5px; overflow-x: auto; word-wrap: break-word; white-space: pre-wrap; }
+        input { width: 100%; padding: 8px; margin: 5px 0 15px 0; box-sizing: border-box; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 14px; }
+        th { background: #007bff; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 SAF P2P Blockchain Network</h1>
+
+        <div class="section">
+            <h3>Create New SAF Wallet</h3>
+            <button onclick="createWallet()">Generate Wallet</button>
+            <pre id="wallet-result">Click to create wallet...</pre>
+        </div>
+
+        <div class="section">
+            <h3>Check Wallet Balance</h3>
+            <label>Wallet Address:</label>
+            <input type="text" id="check-address" value="SAF_Miner_Wallet">
+            <button onclick="checkBalance()">Get Balance</button>
+            <p id="balance-result" style="font-weight: bold; color: #007bff;"></p>
+        </div>
+
+        <div class="section">
+            <h3>🔗 P2P Network (Register Peer Node)</h3>
+            <label>Node Address (e.g., 127.0.0.1:5001):</label>
+            <input type="text" id="node-url" value="192.168.0.10:5001">
+            <button onclick="registerNode()">Register Node</button>
+            <p id="node-result"></p>
+        </div>
+        
+        <div class="section">
+            <h3>Mine New Block (Auto-Broadcasts P2P)</h3>
+            <button onclick="mineBlock()">Mine SAF Block</button>
+            <p id="mine-result"></p>
+        </div>
+
+        <div class="section">
+            <h3>Send SAF Transaction (+1 SAF Fee)</h3>
+            <label>Sender:</label>
+            <input type="text" id="sender" value="rahim_wallet">
+            <label>Recipient:</label>
+            <input type="text" id="recipient" value="karim_wallet">
+            <label>Amount (SAF):</label>
+            <input type="number" id="amount" value="50">
+            <button onclick="sendTransaction()">Send SAF</button>
+            <p id="tx-result"></p>
+        </div>
+
+        <div class="section">
+            <h3>🔍 Blockchain Explorer (Visual Ledger)</h3>
+            <button onclick="loadExplorer()">Refresh Explorer</button>
+            <div id="explorer-data">Loading blocks...</div>
+        </div>
+    </div>
+
+    <script>
+        function createWallet() {
+            fetch('/wallet/new')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('wallet-result').innerText = 
+                        `SAF Address:\n${data.saf_address}\n\nPrivate Key:\n${data.private_key}`;
+                });
+        }
+
+        function checkBalance() {
+            const address = document.getElementById('check-address').value;
+            fetch(`/balance/${address}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('balance-result').innerText = `Balance: ${data.balance} SAF`;
+                });
+        }
+
+        function registerNode() {
+            const nodeUrl = document.getElementById('node-url').value;
+            fetch('/nodes/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nodes: [nodeUrl] })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('node-result').innerText = data.message + ` | Total Nodes: ${data.total_nodes.length}`;
+                loadExplorer();
+            });
+        }
+
+        function loadExplorer() {
+            fetch('/chain')
+                .then(response => response.json())
+                .then(data => {
+                    let html = '';
+                    data.chain.forEach(block => {
+                        html += `<div style="background: #fff; padding: 10px; margin: 10px 0; border-left: 4px solid #007bff; border-radius: 4px;">`;
+                        html += `<strong>Block Index:</strong> ${block.index} | <strong>Proof:</strong> ${block.proof}<br>`;
+                        html += `<strong>Previous Hash:</strong> <span style="font-size:12px; color:gray;">${block.previous_hash}</span>`;
+                        html += `<h4>Transactions:</h4>`;
+                        if(block.transactions.length === 0) {
+                            html += `<p>No transactions in this block.</p>`;
+                        } else {
+                            html += `<table><tr><th>Sender</th><th>Recipient</th><th>Amount</th><th>Fee</th></tr>`;
+                            block.transactions.forEach(tx => {
+                                html += `<tr><td>${tx.sender}</td><td>${tx.recipient}</td><td>${tx.amount}</td><td>${tx.fee || 0}</td></tr>`;
+                            });
+                            html += `</table>`;
+                        }
+                        html += `</div>`;
+                    });
+                    document.getElementById('explorer-data').innerHTML = html;
+                });
+        }
+
+        function mineBlock() {
+            fetch('/mine')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('mine-result').innerText = data.message;
+                    loadExplorer();
+                });
+        }
+
+        function sendTransaction() {
+            const sender = document.getElementById('sender').value;
+            const recipient = document.getElementById('recipient').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+
+            fetch('/transactions/new', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sender, recipient, amount, fee: 1 })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('tx-result').innerText = data.message;
+                loadExplorer();
+            });
+        }
+
+        loadExplorer();
+    </script>
+</body>
+</html>
